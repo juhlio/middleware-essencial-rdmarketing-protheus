@@ -2,7 +2,7 @@ import config from '../config/index.js';
 
 const isDev = config.server.nodeEnv === 'development';
 
-export function errorHandler(err, req, res, next) {
+export function errorHandler(err, req, res, _next) {
   const status = err.status ?? err.statusCode ?? 500;
   const message = err.message ?? 'Erro interno no servidor';
 
