@@ -67,25 +67,14 @@ export async function getLeadsByClassificacao(req, res, next) {
   }
 }
 
-export async function syncNow(req, res) {
-  res.status(501).json({
-    success: false,
-    message:
-      'Sync em massa não é suportado pela API do RD Station Marketing. ' +
-      'Configure um webhook em app.rdstation.com.br/integracoes → Webhooks ' +
-      'apontando para POST /api/webhook/rd-station',
-  });
-}
-
 export async function getStatus(req, res, next) {
   try {
-    const status = await leadService.getNextSyncTime();
+    const status = await leadService.getSyncStatus();
 
     res.json({
       success: true,
-      next_sync: status.nextSync,
-      next_sync_in_seconds: status.nextSyncInSeconds,
-      last_sync: status.lastSync,
+      mode: status.mode,
+      last_webhook_at: status.lastWebhookAt,
       total_leads: status.totalLeads,
     });
   } catch (err) {

@@ -1,128 +1,169 @@
-# RD Station → Protheus Middleware
+# Middleware RD Station Marketing → Protheus
 
-API REST que sincroniza leads do RD Station CRM com o banco de dados local, classifica os contatos por score (QUENTE / MORNO / FRIO) e expõe endpoints para consulta e integração com o Protheus.
-
----
+Recebe leads do **RD Station Marketing** via webhook, salva no PostgreSQL com classificação QUENTE/MORNO/FRIO por score, e expõe endpoints REST para o Protheus (ERP) consultar.
 
 ## Arquitetura
 
 ```
-┌─────────────────┐        ┌──────────────────────┐        ┌─────────────────┐
-│  RD Station CRM │──────▶ │  Node.js Middleware   │──────▶ │   PostgreSQL     │
-│  (API REST)     │  sync  │  (Express + node-cron)│  upsert│   (leads)        │
-└─────────────────┘        └──────────────────────┘        └─────────────────┘
-                                      │
-                                      ▼ REST API
-                           ┌──────────────────────┐
-                           │  Protheus / Clientes  │
-                           └──────────────────────┘
+RD Station Marketing
+  └── Webhook (POST /api/webhook/rd-station)
+        └── Node.js / Express
+              └── PostgreSQL
+                    └── Endpoints REST
+                          └── Protheus (ERP)
 ```
+
+- **Entrada**: RD Station empurra cada lead convertido via webhook
+- **Classificação**: QUENTE (score ≥ 70) · MORNO (score ≥ 40) · FRIO (< 40)
+- **Saída**: GET /api/leads para o Protheus consultar quando precisar
 
 ---
 
 ## Pré-requisitos
 
-- [Docker](https://docs.docker.com/get-docker/) >= 24
-- [Docker Compose](https://docs.docker.com/compose/) >= 2 (já incluso no Docker Desktop)
-- `make` (Linux/macOS nativo; Windows via WSL ou Git Bash)
+- Docker e Docker Compose
+- Conta no RD Station Marketing com acesso ao App Publisher
 
 ---
 
-## Quick Start
+## Configuração
+
+### 1. Cadastrar app no RD Station App Publisher
+
+1. Acesse [app.rdstation.com.br/integracoes/publisher](https://app.rdstation.com.br/integracoes/publisher)
+2. Crie um novo app e anote o **Client ID** e **Client Secret**
+3. Adicione a URL de callback: `http://SEU_SERVIDOR:3000/api/auth/callback`
+
+### 2. Configurar variáveis de ambiente
 
 ```bash
-# 1. Clone o repositório
-git clone <url-do-repo>
-cd rest-leads-essencial
-
-# 2. Configure as variáveis de ambiente
 cp .env.example .env
-# Edite .env com seu RD_STATION_TOKEN e credenciais do banco
-
-# 3. Build das imagens
-make build
-
-# 4. Inicie os containers
-make up-d
-
-# 5. Verifique que está no ar
-curl http://localhost:3000/api/health
 ```
+
+Edite o `.env`:
+
+```env
+RD_STATION_CLIENT_ID=seu_client_id
+RD_STATION_CLIENT_SECRET=seu_client_secret
+RD_STATION_REDIRECT_URI=http://SEU_SERVIDOR:3000/api/auth/callback
+
+DB_HOST=postgres
+DB_USER=middleware_user
+DB_PASSWORD=senha_segura
+DB_NAME=rd_station_middleware
+
+WEBHOOK_SECRET=chave_secreta_para_validar_webhook
+```
+
+### 3. Subir os containers
+
+```bash
+docker compose up -d
+```
+
+### 4. Autorizar o OAuth2 (uma vez)
+
+Abra no navegador:
+```
+http://SEU_SERVIDOR:3000/api/auth/rd-station
+```
+
+Faça login no RD Station quando solicitado. O token é salvo automaticamente no banco e renovado antes de expirar.
+
+Verifique se está autorizado:
+```bash
+curl http://SEU_SERVIDOR:3000/api/auth/status
+```
+
+### 5. Configurar webhook no RD Station
+
+1. Acesse **app.rdstation.com.br → Configurações → Integrações → Webhooks**
+2. Crie um webhook com:
+   - **URL**: `http://SEU_SERVIDOR:3000/api/webhook/rd-station?auth_token=WEBHOOK_SECRET`
+   - **Gatilho**: Conversão
+3. Clique em **Verificar** para testar
 
 ---
 
 ## Endpoints
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/health` | Status da aplicação e última sincronização |
-| `GET` | `/api/status` | Próxima sincronização em segundos |
-| `GET` | `/api/leads` | Lista leads com filtros e paginação |
-| `GET` | `/api/leads/:id` | Busca lead por ID |
-| `GET` | `/api/leads/classificacao/:tipo` | Lista leads por classificação (QUENTE, MORNO, FRIO) |
-| `POST` | `/api/sync` | Dispara sincronização manual imediata |
+### Leads
 
-### Query params — `GET /api/leads`
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/leads` | Lista todos os leads (paginado) |
+| GET | `/api/leads?classificacao=QUENTE` | Filtra por classificação |
+| GET | `/api/leads?segmento=Agro` | Filtra por segmento |
+| GET | `/api/leads/classificacao/QUENTE` | Leads quentes |
+| GET | `/api/leads/classificacao/MORNO` | Leads mornos |
+| GET | `/api/leads/classificacao/FRIO` | Leads frios |
+| GET | `/api/leads/:id` | Lead por ID |
 
-| Parâmetro | Tipo | Padrão | Descrição |
-|-----------|------|--------|-----------|
-| `limit` | number | 100 | Itens por página (máx. 1000) |
-| `offset` | number | 0 | Registros a pular |
-| `classificacao` | string | — | QUENTE, MORNO ou FRIO |
-| `segmento` | string | — | Filtro parcial por segmento |
+### Sistema
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/health` | Status do serviço e total de leads |
+| GET | `/api/status` | Modo de sync e último webhook recebido |
+| GET | `/api/auth/rd-station` | Inicia fluxo OAuth2 |
+| GET | `/api/auth/callback` | Callback OAuth2 (uso interno) |
+| GET | `/api/auth/status` | Verifica se OAuth2 está autorizado |
+| POST | `/api/webhook/rd-station` | Recebe eventos do RD Station |
+
+### Parâmetros de paginação
+
+```
+GET /api/leads?limit=50&offset=0
+GET /api/leads?classificacao=QUENTE&limit=20
+```
 
 ---
 
-## Desenvolvimento
+## Campos dos leads
+
+| Campo | Origem no RD Station |
+|-------|----------------------|
+| `email` | email |
+| `name` | name |
+| `phone` | personal_phone / mobile_phone |
+| `cnpj_cpf` | custom_fields.cpf_cnpj |
+| `company_name` | company_name |
+| `city` / `state` | city / state |
+| `segmento` | custom_fields.segmento |
+| `potencia` | custom_fields.potencia / potencia_kva |
+| `tipo_combustivel` | custom_fields.tipo_combustivel |
+| `periodo_locacao` | custom_fields.periodo_locacao |
+| `aplicacao` | custom_fields.aplicacao |
+| `origem_formulario` | conversion_identifier do formulário |
+| `lead_score` | lead_score |
+| `classificacao` | calculado (QUENTE/MORNO/FRIO) |
+| `tags` | tags[] |
+| `status_oportunidade` | OPORTUNIDADE quando opportunity=true |
+
+---
+
+## Desenvolvimento local com ngrok
+
+Para testar webhooks localmente:
 
 ```bash
-make logs          # logs do middleware em tempo real
-make test          # roda Jest dentro do container
-make lint          # ESLint em src/
-make format        # Prettier em src/
-make shell         # shell dentro do container
-make db-shell      # psql no banco de dados
-make restart       # reinicia só o middleware
-make clean         # derruba containers e apaga volumes
+# Terminal 1 — sobe os containers
+docker compose up -d
+
+# Terminal 2 — expõe a porta para a internet
+ngrok http 3000
 ```
+
+Use a URL do ngrok (`.ngrok-free.dev`) na configuração do webhook no RD Station.
 
 ---
 
-## Estrutura de pastas
+## Comandos úteis
 
+```bash
+make up-d        # sobe em background
+make logs        # logs em tempo real
+make down        # derruba tudo
+make build       # rebuild da imagem
+make db-shell    # acessa o PostgreSQL
 ```
-src/
-├── config/
-│   ├── index.js          # carrega e valida variáveis de ambiente
-│   └── database.js       # pool PostgreSQL
-├── controllers/
-│   └── index.js          # handlers HTTP
-├── middlewares/
-│   ├── index.js          # barrel de exports
-│   ├── errorHandler.js   # errorHandler, notFoundHandler, asyncHandler
-│   └── validation.js     # validação de query params e path params
-├── routes/
-│   └── index.js          # definição de todas as rotas
-├── services/
-│   ├── databaseService.js # CRUD e inicialização do banco
-│   ├── leadService.js     # lógica de negócio e mapeamento de leads
-│   └── rdStationService.js# integração com a API do RD Station
-└── utils/
-    └── cronSync.js        # agendamento da sincronização periódica
-tests/                     # testes Jest
-docker/                    # arquivos auxiliares Docker
-```
-
----
-
-## Contribuindo
-
-1. Crie uma branch a partir de `main`: `git checkout -b feat/minha-feature`
-2. Faça as alterações e rode `make lint` e `make test`
-3. Abra um Pull Request descrevendo o que foi alterado e por quê
-
----
-
-## Licença
-
-Privado — uso interno.

@@ -25,7 +25,7 @@ router.get('/callback', asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'RD Station autorizado com sucesso! Você já pode usar /api/sync.',
+    message: 'RD Station autorizado com sucesso! Configure o webhook em app.rdstation.com.br/integracoes/webhooks apontando para POST /api/webhook/rd-station.',
   });
 }));
 

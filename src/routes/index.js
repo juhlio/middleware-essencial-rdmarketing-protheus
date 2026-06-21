@@ -25,7 +25,4 @@ router.get('/leads/classificacao/:tipo', validateClassificacao, asyncHandler(con
 // GET /api/leads/:id
 router.get('/leads/:id', validateId, asyncHandler(controller.getLead));
 
-// POST /api/sync
-router.post('/sync', asyncHandler(controller.syncNow));
-
 export default router;
