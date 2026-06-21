@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as controller from '../controllers/index.js';
 import { validateQueryParams, validateId, validateClassificacao } from '../middlewares/validation.js';
-import { asyncHandler } from '../middlewares/errorHandler.js';
+import { asyncHandler, apiKeyAuth } from '../middlewares/index.js';
 import authRoutes from './authRoutes.js';
 import webhookRoutes from './webhookRoutes.js';
 
@@ -10,8 +10,12 @@ const router = Router();
 router.use('/auth', authRoutes);
 router.use('/webhook', webhookRoutes);
 
-// GET /api/health
+// GET /api/health — aberto (healthcheck do Docker)
 router.get('/health', asyncHandler(controller.getHealth));
+
+// Rotas protegidas por API key — Protheus deve enviar Authorization: Bearer <key>
+router.use('/status', apiKeyAuth);
+router.use('/leads', apiKeyAuth);
 
 // GET /api/status
 router.get('/status', asyncHandler(controller.getStatus));

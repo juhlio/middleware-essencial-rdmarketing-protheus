@@ -87,7 +87,10 @@ curl http://SEU_SERVIDOR:3000/api/auth/status
 
 ## Endpoints
 
-### Leads
+> **🔒 Autenticação**: os endpoints marcados com 🔒 exigem o header
+> `Authorization: Bearer <PROTHEUS_API_KEY>` ou `X-API-Key: <PROTHEUS_API_KEY>`.
+
+### Leads (🔒 requer API key)
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
@@ -98,17 +101,25 @@ curl http://SEU_SERVIDOR:3000/api/auth/status
 | GET | `/api/leads/classificacao/MORNO` | Leads mornos |
 | GET | `/api/leads/classificacao/FRIO` | Leads frios |
 | GET | `/api/leads/:id` | Lead por ID |
+| GET | `/api/status` 🔒 | Modo de sync e último webhook recebido |
 
-### Sistema
+### Sistema (aberto)
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/health` | Status do serviço e total de leads |
-| GET | `/api/status` | Modo de sync e último webhook recebido |
-| GET | `/api/auth/rd-station` | Inicia fluxo OAuth2 |
+| GET | `/api/health` | Status do serviço — aberto para healthcheck do Docker |
+| GET | `/api/auth/rd-station` | Inicia fluxo OAuth2 com RD Station |
 | GET | `/api/auth/callback` | Callback OAuth2 (uso interno) |
 | GET | `/api/auth/status` | Verifica se OAuth2 está autorizado |
-| POST | `/api/webhook/rd-station` | Recebe eventos do RD Station |
+| POST | `/api/webhook/rd-station` | Recebe eventos do RD Station (protegido por WEBHOOK_SECRET) |
+
+### Exemplo de chamada autenticada
+
+```bash
+curl -H "Authorization: Bearer sua_chave" http://SEU_SERVIDOR:3000/api/leads
+# ou
+curl -H "X-API-Key: sua_chave" http://SEU_SERVIDOR:3000/api/leads
+```
 
 ### Parâmetros de paginação
 

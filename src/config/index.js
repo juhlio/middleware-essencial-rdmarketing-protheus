@@ -35,6 +35,9 @@ const config = {
   webhook: {
     secret: optional('WEBHOOK_SECRET', ''),
   },
+  protheus: {
+    apiKey: required('PROTHEUS_API_KEY'),
+  },
 };
 
 export default config;

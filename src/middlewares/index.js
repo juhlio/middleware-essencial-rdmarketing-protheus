@@ -1,4 +1,5 @@
 export { errorHandler, notFoundHandler, asyncHandler } from './errorHandler.js';
+export { apiKeyAuth } from './apiKeyAuth.js';
 
 export function requestLogger(req, res, next) {
   const start = Date.now();
