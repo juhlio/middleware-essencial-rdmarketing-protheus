@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "eslint": "^9.5.0",
+    "globals": "^17.6.0",
     "jest": "^29.7.0",
     "nodemon": "^3.1.4",
     "prettier": "^3.3.2",
