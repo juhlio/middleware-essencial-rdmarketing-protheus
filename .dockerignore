@@ -1,0 +1,15 @@
+node_modules/
+npm-debug.log
+.git/
+.gitignore
+.env
+.env.*
+README.md
+EXEMPLOS_REQUISICOES.md
+.DS_Store
+tests/
+.jest/
+coverage/
+.eslintcache
+dist/
+build/
