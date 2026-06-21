@@ -102,7 +102,7 @@ export async function insertOrUpdateLead(lead) {
        status_oportunidade = EXCLUDED.status_oportunidade,
        updated_at          = EXCLUDED.updated_at,
        data_sincronismo    = NOW()
-     RETURNING *`,
+     RETURNING *, (xmax = 0) AS was_inserted`,
     [
       rd_id, uuid, name, email, phone, cnpj_cpf, company_name,
       city, state, segmento, potencia, tipo_combustivel, periodo_locacao,
@@ -198,6 +198,19 @@ export async function getLeadsBySegmento(segmento) {
 export async function countLeads() {
   const { rows } = await pool.query('SELECT COUNT(*)::int AS total FROM leads');
   return rows[0].total;
+}
+
+export async function countLeadsPorClassificacao() {
+  const { rows } = await pool.query(
+    `SELECT classificacao, COUNT(*)::int AS total
+     FROM leads
+     GROUP BY classificacao`
+  );
+  const result = { QUENTE: 0, MORNO: 0, FRIO: 0 };
+  for (const row of rows) {
+    if (row.classificacao in result) result[row.classificacao] = row.total;
+  }
+  return result;
 }
 
 // -------------------------------------------------------------------

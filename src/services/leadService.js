@@ -4,8 +4,10 @@ import {
   getLeadById as dbGetLeadById,
   getLeadsByClassificacao as dbGetLeadsByClassificacao,
   countLeads,
+  countLeadsPorClassificacao,
 } from './databaseService.js';
 import { mapRDContactToLead } from '../utils/leadMapper.js';
+import { sendNewLeadEmail } from './emailService.js';
 
 let lastSyncAt = null;
 
@@ -60,6 +62,10 @@ export async function processWebhookPayload(body) {
   const saved = await insertOrUpdateLead(lead);
   lastSyncAt = new Date().toISOString();
 
+  if (saved.was_inserted) {
+    sendNewLeadEmail(saved).catch(() => {});
+  }
+
   return {
     event_type,
     email: saved.email,
@@ -84,8 +90,13 @@ export async function getLeadsByClassificacao(tipo) {
 }
 
 export async function getStats() {
+  const [totalLeads, leadsPorClassificacao] = await Promise.all([
+    countLeads(),
+    countLeadsPorClassificacao(),
+  ]);
   return {
-    totalLeads: await countLeads(),
+    totalLeads,
+    leadsPorClassificacao,
     lastSync: lastSyncAt,
   };
 }

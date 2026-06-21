@@ -38,6 +38,15 @@ const config = {
   protheus: {
     apiKey: required('PROTHEUS_API_KEY'),
   },
+  email: {
+    smtpHost:   required('SMTP_HOST'),
+    smtpPort:   parseInt(optional('SMTP_PORT', '587'), 10),
+    smtpSecure: optional('SMTP_SECURE', 'false') === 'true',
+    smtpUser:   required('SMTP_USER'),
+    smtpPass:   required('SMTP_PASS'),
+    from:       optional('EMAIL_FROM', process.env['SMTP_USER'] ?? ''),
+    notifyTo:   required('NOTIFY_EMAIL_TO'),
+  },
 };
 
 export default config;

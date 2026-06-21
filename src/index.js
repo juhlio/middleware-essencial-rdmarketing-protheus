@@ -1,5 +1,6 @@
 import config from './config/index.js';
 import express from 'express';
+import { initHeartbeatCron } from './utils/heartbeatCron.js';
 
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler, requestLogger } from './middlewares/index.js';
@@ -47,6 +48,8 @@ async function start() {
       resolve();
     });
   });
+
+  initHeartbeatCron();
 
   console.info('[server] Aplicação iniciada com sucesso');
 }
